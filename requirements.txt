@@ -7,3 +7,4 @@ openai-whisper
 transformers
 optimum
 accelerate
+coqui-tts

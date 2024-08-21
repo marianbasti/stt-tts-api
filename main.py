@@ -1,39 +1,41 @@
 from fastapi import FastAPI, Form, UploadFile, File
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Response
+from fastapi.responses import Response
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
 
-import os
+import os, io, wave
 import shutil
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, List, Union, Optional
 
 from datetime import timedelta
+import time
+import soundfile as sf
 
 import torch
-import numpy as np
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
 app = FastAPI()
+"""
+curl https://api.openai.com/v1/audio/transcriptions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: multipart/form-data" \
+  -F model="whisper-1" \
+  -F file="@/path/to/file.mp3"
 
-#url https://api.openai.com/v1/audio/transcriptions \
-#  -H "Authorization: Bearer $OPENAI_API_KEY" \
-#  -H "Content-Type: multipart/form-data" \
-#  -F model="whisper-1" \
-#  -F file="@/path/to/file/openai.mp3"
 
-#{
-#  "text": "Imagine the wildest idea that you've ever had, and you're curious about how it might scale to something that's a 100, a 1,000 times bigger..."
-#}
+response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/speaker/audio.wav"" "http://localhost:8000/v1/audio/tts")
+"""
 
-# -----
-# copied from https://github.com/hayabhay/whisper-ui
+
 
 # Whisper transcription functions
 # ----------------
 @lru_cache(maxsize=1)
 def get_whisper_model(whisper_model: str):
-    """Get a whisper model from the cache or download it if it doesn't exist"""
+    """Get a whisper model"""
     model = pipeline(
         "automatic-speech-recognition",
         model=whisper_model,
@@ -43,13 +45,20 @@ def get_whisper_model(whisper_model: str):
     )
     return model
 
+def get_tts_model(model_dir: str):
+    """Get a TTS model"""
+    config = XttsConfig()
+    config.load_json(f"{model_dir}/config.json")
+    model = Xtts.init_from_config(config)
+    model.load_checkpoint(config, checkpoint_dir=model_dir, eval=True)
+    model.cuda()
+    return model, config
+
 def transcribe(audio_path: str, whisper_model: str, **whisper_args):
     """Transcribe the audio file using whisper"""
-
-    # Get whisper model
-    # NOTE: If mulitple models are selected, this may keep all of them in memory depending on the cache size
+    import time
+    start_time = time.time()
     transcriber = get_whisper_model(whisper_model)
-
 
     transcript = transcriber(
         audio_path,
@@ -57,12 +66,11 @@ def transcribe(audio_path: str, whisper_model: str, **whisper_args):
         batch_size=24,
         return_timestamps=True,
     )
-
+    end_time = time.time()
+    print(f"Transcription took {end_time - start_time:.2f} seconds")
     return transcript
 
-
 WHISPER_DEFAULT_SETTINGS = {
-#    "whisper_model": "base",
     "whisper_model": "marianbasti/distil-whisper-large-v3-es",
     "temperature": 0.0,
     "temperature_increment_on_fallback": 0.2,
@@ -71,13 +79,14 @@ WHISPER_DEFAULT_SETTINGS = {
     "compression_ratio_threshold": 2.4,
     "condition_on_previous_text": True,
     "verbose": False,
-#    "verbose": True,
     "task": "transcribe",
-#    "task": "translation",
+    "language": "es",
 }
 
 UPLOAD_DIR="/tmp"
-# -----
+
+TTS_MODEL="/home/marian/TTS/XTTS-v2-argentinian-spanish"
+model, config = get_tts_model(TTS_MODEL)
 
 @app.post('/v1/audio/transcriptions')
 async def transcriptions(model: str = Form(...),
@@ -154,9 +163,76 @@ async def transcriptions(model: str = Form(...),
     if response_format in ['verbose_json']:
         transcript.setdefault('task', WHISPER_DEFAULT_SETTINGS['task'])
         transcript.setdefault('duration', transcript['segments'][-1]['end'])
-        if transcript['language'] == 'ja':
-            transcript['language'] = 'japanese'
         return transcript
 
     return {'text': transcript['text']}
 
+@app.post("/v1/audio/tts")
+async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(...)):
+
+    def tts():
+        t0 = time.time()
+        output = model.synthesize(
+            text,
+            config,
+            speaker_wav.file,
+            language="es"
+        )
+
+        inference_time = time.time() - t0
+        print(f"Time to generate audio: {round(inference_time*1000)} milliseconds")
+        with io.BytesIO() as wav_io:
+            sf.write(wav_io, output['wav'], samplerate=22050, format='WAV')
+            wav_io.seek(0)
+            wav_bytes = wav_io.read()
+        return wav_bytes
+
+    return Response(tts(), media_type="audio/wav")
+
+
+# Serve test.html webpage
+@app.get("/")
+async def main():
+    content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XTTS Inference API</title>
+<style>
+    /* Same styles as before */
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>XTTS Inference API</h1>
+    <input type="text" id="text-input" placeholder="Enter text to synthesize">
+    <input type="file" id="speaker-file" accept="audio/wav">
+    <button id="say-button" onclick="say()">Say</button>
+    <audio id="audio-player" controls></audio>
+</div>
+
+<script>
+    // Post the text and speaker audio to the API and play the streaming response
+    async function say() {
+        const text = document.getElementById("text-input").value;
+        const speakerFile = document.getElementById("speaker-file").files[0];
+        const formData = new FormData();
+        formData.append("text", text);
+        formData.append("speaker_wav", speakerFile);
+        const response = await fetch("/v1/audio/tts", {
+            method: "POST",
+            body: formData,
+        });
+        console.log(response)
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audioPlayer = document.getElementById("audio-player");
+        audioPlayer.src = audioUrl;
+    }
+</script>
+</body>
+</html>
+    """
+    return Response(content, media_type="text/html")
