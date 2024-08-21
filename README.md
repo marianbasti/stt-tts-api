@@ -7,18 +7,10 @@ This API will be compatible with [OpenAI Whisper (speech to text) API](https://o
 Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui)
 
 ## Setup
-This was built & tested on Python 3.10.8, Ubutu20.04/WSL2 but should also work on Python 3.9+.
+This was built & tested on Python 3.12.3, Ubutu 24
 
 ```bash
-sudo apt install ffmpeg
-pip install fastapi python-multipart pydantic uvicorn ffmpeg-python openai-whisper
-# or pip install -r requirements.txt
-```
-
-or 
-
-```bash
-docker compose build
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -27,12 +19,6 @@ docker compose build
 ```bash
 export PYTHONPATH=.
 uvicorn main:app --host 0.0.0.0
-```
-
-or 
-
-```bash
-docker compose up
 ```
 
 ### client

@@ -9,8 +9,10 @@ from typing import Any, List, Union, Optional
 
 from datetime import timedelta
 
+import torch
 import numpy as np
-import whisper
+from transformers import pipeline
+from transformers.utils import is_flash_attn_2_available
 
 app = FastAPI()
 
@@ -32,7 +34,13 @@ app = FastAPI()
 @lru_cache(maxsize=1)
 def get_whisper_model(whisper_model: str):
     """Get a whisper model from the cache or download it if it doesn't exist"""
-    model = whisper.load_model(whisper_model)
+    model = pipeline(
+        "automatic-speech-recognition",
+        model=whisper_model,
+        torch_dtype=torch.float16,
+        device="cuda:0", # or mps for Mac devices
+        model_kwargs={"attn_implementation": "flash_attention_2"} if is_flash_attn_2_available() else {"attn_implementation": "sdpa"},
+    )
     return model
 
 def transcribe(audio_path: str, whisper_model: str, **whisper_args):
@@ -42,19 +50,12 @@ def transcribe(audio_path: str, whisper_model: str, **whisper_args):
     # NOTE: If mulitple models are selected, this may keep all of them in memory depending on the cache size
     transcriber = get_whisper_model(whisper_model)
 
-    # Set configs & transcribe
-    if whisper_args["temperature_increment_on_fallback"] is not None:
-        whisper_args["temperature"] = tuple(
-            np.arange(whisper_args["temperature"], 1.0 + 1e-6, whisper_args["temperature_increment_on_fallback"])
-        )
-    else:
-        whisper_args["temperature"] = [whisper_args["temperature"]]
 
-    del whisper_args["temperature_increment_on_fallback"]
-
-    transcript = transcriber.transcribe(
+    transcript = transcriber(
         audio_path,
-        **whisper_args,
+        chunk_length_s=30,
+        batch_size=24,
+        return_timestamps=True,
     )
 
     return transcript
@@ -62,7 +63,7 @@ def transcribe(audio_path: str, whisper_model: str, **whisper_args):
 
 WHISPER_DEFAULT_SETTINGS = {
 #    "whisper_model": "base",
-    "whisper_model": "large-v2",
+    "whisper_model": "marianbasti/distil-whisper-large-v3-es",
     "temperature": 0.0,
     "temperature_increment_on_fallback": 0.2,
     "no_speech_threshold": 0.6,
@@ -86,7 +87,7 @@ async def transcriptions(model: str = Form(...),
                          temperature: Optional[float] = Form(None),
                          language: Optional[str] = Form(None)):
 
-    assert model == "whisper-1"
+    assert model == "marianbasti/distil-whisper-large-v3-es"
     if file is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
