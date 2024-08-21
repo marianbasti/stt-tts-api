@@ -1,8 +1,6 @@
-# tiny-openai-whisper-api
+# stt-tts-api
 
-OpenAI Whisper API-style local server, runnig on FastAPI. This is for companies behind proxies or security firewalls.
-
-This API will be compatible with [OpenAI Whisper (speech to text) API](https://openai.com/blog/introducing-chatgpt-and-whisper-apis). See also  [Create transcription - API Reference - OpenAI API](https://platform.openai.com/docs/api-reference/audio/create).
+FastAPI server to serve whisper transcription models and xtts speech synthesis models.
 
 Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui)
 
@@ -15,36 +13,73 @@ pip install -r requirements.txt
 
 ## Usage
 
-### server
+### Run server
 ```bash
-export PYTHONPATH=.
 uvicorn main:app --host 0.0.0.0
 ```
 
-### client
 
-note: Authorization header is ignored.
+### Endpoint: `/v1/audio/transcriptions`
 
-example 1: typical usecase, identical to OpenAI Whisper API example
+**Description:** This endpoint accepts an audio file and returns its transcription in the specified format.
+
+**Parameters:**
+
+- `model` (str, required): The model to be used for transcription.
+- `file` (UploadFile, required): The audio file to be transcribed.
+- `response_format` (str, optional): The format of the transcription response. Can be one of `['json', 'text', 'srt', 'verbose_json', 'vtt']`. Default is `json`.
+- `prompt` (str, optional): An optional prompt to guide the transcription.
+- `temperature` (float, optional): A value between 0.0 and 1.0 to control the randomness of the transcription. Default is `0.0`.
+- `language` (str, optional): The language of the transcription.
+
+**Responses:**
+
+- **200 OK**: Returns the transcription in the specified format.
+- **400 Bad Request**: Returns an error if the request parameters are invalid.
+
+**Example Request:**
 
 ```bash
-curl http://127.0.0.1:8000/v1/audio/transcriptions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: multipart/form-data" \
-  -F model="whisper-1" \
-  -F file="@/path/to/file/openai.mp3"
+curl -X POST "http://yourserver.com/v1/audio/transcriptions" \
+-F "model=marianbasti/distil-whisper-large-v3-es" \
+-F "file=@path_to_your_audio_file.wav" \
+-F "response_format=json"
 ```
 
-example 2: set the output format as text, described in quickstart.
+**Example Response:**
+
+```json
+{
+  "text": "Transcribed text here"
+}
+```
+
+### Endpoint: `/v1/audio/tts`
+
+**Description:** This endpoint accepts text and a speaker audio file, and returns a synthesized audio file.
+
+**Parameters:**
+
+- `text` (str, required): The text to be converted to speech.
+- `speaker_wav` (UploadFile, required): An audio file of the speaker's voice.
+
+**Responses:**
+
+- **200 OK**: Returns the synthesized audio file in WAV format.
+- **400 Bad Request**: Returns an error if the request parameters are invalid.
+
+**Example Request:**
 
 ```bash
-curl http://127.0.0.1:8000/v1/audio/transcriptions \
-  -H "Content-Type: multipart/form-data" \
-  -F model="whisper-1" \
-  -F file="@/path/to/file/openai.mp3" \
-  -F response_format=text
+curl -X POST "http://yourserver.com/v1/audio/tts" \
+-F "text=Hello, world!" \
+-F "speaker_wav=@path_to_speaker_audio_file.wav"
 ```
+
+**Example Response:**
+
+The response will be a binary WAV file containing the synthesized speech.
 
 ## License
 
-Whisper is licensed under MIT. Everything else by [morioka](https://github.com/morioka) is licensed under MIT.
+MIT
