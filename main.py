@@ -14,6 +14,7 @@ import time
 import soundfile as sf
 
 import torch
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
@@ -26,7 +27,7 @@ curl https://api.openai.com/v1/audio/transcriptions \
   -F file="@/path/to/file.mp3"
 
 
-response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/speaker/audio.wav"" "http://localhost:8000/v1/audio/tts")
+response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/speaker/audio.wav"" "http://localhost:8080/v1/audio/tts")
 """
 
 
@@ -34,7 +35,7 @@ response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/
 # Whisper transcription functions
 # ----------------
 @lru_cache(maxsize=1)
-def get_whisper_model(whisper_model: str):
+def get_whisper_model_faster(whisper_model: str):
     """Get a whisper model"""
     model = pipeline(
         "automatic-speech-recognition",
@@ -45,6 +46,26 @@ def get_whisper_model(whisper_model: str):
     )
     return model
 
+def get_whisper_model(whisper_model: str):
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        whisper_model, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+    )
+    model.to(device)
+    processor = AutoProcessor.from_pretrained(whisper_model)
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        max_new_tokens=128,
+        torch_dtype=torch_dtype,
+        device=device,
+    )
+
+    return pipe
+
 def get_tts_model(model_dir: str):
     """Get a TTS model"""
     config = XttsConfig()
@@ -54,17 +75,31 @@ def get_tts_model(model_dir: str):
     model.cuda()
     return model, config
 
-def transcribe(audio_path: str, whisper_model: str, **whisper_args):
+def transcribe_faster(audio_path: str, whisper_model: str, **whisper_args):
     """Transcribe the audio file using whisper"""
     start_time = time.time()
-    transcriber = get_whisper_model(whisper_model)
+    transcriber = get_whisper_model_faster(whisper_model)
 
     transcript = transcriber(
         audio_path,
         chunk_length_s=30,
         batch_size=24,
-        return_timestamps=True,
+        return_timestamps=False
     )
+    end_time = time.time()
+    print(f"Transcription took {end_time - start_time:.2f} seconds")
+    return transcript
+
+def transcribe(audio_path: str, whisper_model: str, **whisper_args):
+    """Transcribe the audio file using whisper"""
+    start_time = time.time()
+    
+    transcriber = get_whisper_model(whisper_model)
+
+    transcript = transcriber(
+        audio_path
+    )
+
     end_time = time.time()
     print(f"Transcription took {end_time - start_time:.2f} seconds")
     return transcript
@@ -127,7 +162,7 @@ async def transcriptions(model: str = Form(...),
     shutil.copyfileobj(fileobj, upload_file)
     upload_file.close()
 
-    transcript = transcribe(audio_path=upload_name, **WHISPER_DEFAULT_SETTINGS)
+    transcript = transcribe_faster(audio_path=upload_name, **WHISPER_DEFAULT_SETTINGS)
 
 
     if response_format in ['text']:
