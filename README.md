@@ -15,7 +15,7 @@ pip install -r requirements.txt
 
 ### Run server
 ```bash
-uvicorn main:app --host 0.0.0.0
+uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
 
@@ -40,13 +40,13 @@ uvicorn main:app --host 0.0.0.0
 **Example Request:**
 
 ```bash
-curl -X POST "http://yourserver.com/v1/audio/transcriptions" \
+curl -X POST "http://localhost:8080/v1/audio/transcriptions" \
 -F "model=marianbasti/distil-whisper-large-v3-es" \
 -F "file=@path_to_your_audio_file.wav" \
 -F "response_format=json"
 ```
 
-**Example Response:**
+**Response:**
 
 ```json
 {
@@ -71,12 +71,12 @@ curl -X POST "http://yourserver.com/v1/audio/transcriptions" \
 **Example Request:**
 
 ```bash
-curl -X POST "http://yourserver.com/v1/audio/tts" \
+curl -X POST "http://localhost:8080/v1/audio/tts" \
 -F "text=Hello, world!" \
 -F "speaker_wav=@path_to_speaker_audio_file.wav"
 ```
 
-**Example Response:**
+**Response:**
 
 The response will be a binary WAV file containing the synthesized speech.
 

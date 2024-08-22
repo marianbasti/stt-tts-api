@@ -56,7 +56,6 @@ def get_tts_model(model_dir: str):
 
 def transcribe(audio_path: str, whisper_model: str, **whisper_args):
     """Transcribe the audio file using whisper"""
-    import time
     start_time = time.time()
     transcriber = get_whisper_model(whisper_model)
 
@@ -212,6 +211,12 @@ async def main():
     <button id="say-button" onclick="say()">Say</button>
     <audio id="audio-player" controls></audio>
 </div>
+<div class="container">
+    <h1>Whisper Inference API</h1>
+    <input type="file" id="audio-transcribe" accept="audio/wav">
+    <button id="transcribe-button" onclick="transcribe()">Transcribe</button>
+    <a id="transcribed"></a>
+</div>
 
 <script>
     // Post the text and speaker audio to the API and play the streaming response
@@ -230,6 +235,20 @@ async def main():
         const audioUrl = URL.createObjectURL(audioBlob);
         const audioPlayer = document.getElementById("audio-player");
         audioPlayer.src = audioUrl;
+    }
+    // Post the audio to the API and show transcribed text
+    async function transcribe() {
+        const audioFile = document.getElementById("audio-transcribe").files[0];
+        const formData = new FormData();
+        formData.append("model", "marianbasti/distil-whisper-large-v3-es");
+        formData.append("file", audioFile);
+        const response = await fetch("/v1/audio/transcriptions", {
+            method: "POST",
+            body: formData,
+        });
+        const transcribed = await response.text();
+        const transcribedElement = document.getElementById("transcribed");
+        transcribedElement.innerText = transcribed;
     }
 </script>
 </body>
