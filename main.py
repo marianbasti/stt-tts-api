@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 
-import os, io, wave
+import os, io, argparse
 import shutil
 from functools import lru_cache
 from typing import Any, List, Union, Optional
@@ -17,6 +17,21 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
+
+# Create the parser
+parser = argparse.ArgumentParser(description="TTS Model Argument Parser")
+
+# Add the TTS_MODEL argument
+parser.add_argument('--tts_model', type=str, default="XTTS-v2-argentinian-spanish",
+                    help='Path to the TTS model')
+
+# Parse the arguments
+args = parser.parse_args()
+
+# Use the parsed argument
+TTS_MODEL = args.tts_model
+
+UPLOAD_DIR="/tmp"
 
 app = FastAPI()
 """
@@ -117,9 +132,6 @@ WHISPER_DEFAULT_SETTINGS = {
     "language": "es",
 }
 
-UPLOAD_DIR="/tmp"
-
-TTS_MODEL="/home/marian/TTS/XTTS-v2-argentinian-spanish"
 model, config = get_tts_model(TTS_MODEL)
 
 @app.post('/v1/audio/transcriptions')
