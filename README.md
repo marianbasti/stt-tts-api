@@ -5,17 +5,30 @@ FastAPI server to serve whisper transcription models and xtts speech synthesis m
 Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui)
 
 ## Setup
-This was built & tested on Python 3.12.3, Ubutu 24
+This was built & tested on Python 3.12.3, Ubutu 24.
+We recommend using a python virtual environment.
 
 ```bash
+git clone https://github.com/marianbasti/stt-tts-api
+cd stt-tts-api
+python3 -m venv ./env
+source env/bin/activate
 pip install -r requirements.txt
 ```
 
+Download and place the XTTS-v2 model from [🤗HuggingFace](https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish) in `/models/`:
+```bash
+cd models
+git clone https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish
+cd ..
+# Set TTS model path as environment variable
+export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
+```
 ## Usage
 
 ### Run server
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8080 --tts_model ./path/to/tts/model
+uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
 
@@ -79,6 +92,9 @@ curl -X POST "http://localhost:8080/v1/audio/tts" \
 **Response:**
 
 The response will be a binary WAV file containing the synthesized speech.
+
+### Simple web interface
+A minimalistic web GUI for interacting with both models runs on the base URL.
 
 ## License
 

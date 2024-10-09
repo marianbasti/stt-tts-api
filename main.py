@@ -19,7 +19,7 @@ from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
 # Set tts model path
-TTS_MODEL = os.getenv('TTS_MODEL', "./XTTS-v2_Argentinian-Spanish_1.1")
+TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_Argentinian-Spanish_1.1")
 
 UPLOAD_DIR="/tmp"
 
@@ -32,7 +32,7 @@ curl https://api.openai.com/v1/audio/transcriptions \
   -F file="@/path/to/file.mp3"
 
 
-response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/speaker/audio.wav"" "http://localhost:8080/v1/audio/tts")
+response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/speaker/audio.wav"" "http://BASE_URL:PORT/v1/audio/tts")
 """
 
 
