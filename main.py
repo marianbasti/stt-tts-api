@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 
-import os, io, argparse
+import os, io
 import shutil
 from functools import lru_cache
 from typing import Any, List, Union, Optional
@@ -18,18 +18,8 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
-# Create the parser
-parser = argparse.ArgumentParser(description="TTS Model Argument Parser")
-
-# Add the TTS_MODEL argument
-parser.add_argument('--tts_model', type=str, default="XTTS-v2-argentinian-spanish",
-                    help='Path to the TTS model')
-
-# Parse the arguments
-args = parser.parse_args()
-
-# Use the parsed argument
-TTS_MODEL = args.tts_model
+# Set tts model path
+TTS_MODEL = os.getenv('TTS_MODEL', "./XTTS-v2_Argentinian-Spanish_1.1")
 
 UPLOAD_DIR="/tmp"
 
