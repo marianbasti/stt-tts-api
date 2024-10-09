@@ -233,61 +233,131 @@ async def main():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XTTS Inference API</title>
-<style>
-    /* Same styles as before */
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XTTS & Whisper Inference API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 300px;
+            text-align: center;
+        }
+
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #audio-player {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        #transcribed {
+            display: block;
+            margin-top: 10px;
+            color: #555;
+            font-style: italic;
+            word-wrap: break-word;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-    <h1>XTTS Inference API</h1>
-    <input type="text" id="text-input" placeholder="Enter text to synthesize">
-    <input type="file" id="speaker-file" accept="audio/wav">
-    <button id="say-button" onclick="say()">Say</button>
-    <audio id="audio-player" controls></audio>
-</div>
-<div class="container">
-    <h1>Whisper Inference API</h1>
-    <input type="file" id="audio-transcribe" accept="audio/wav">
-    <button id="transcribe-button" onclick="transcribe()">Transcribe</button>
-    <a id="transcribed"></a>
-</div>
+    <div class="container">
+        <h1>XTTS Inference API</h1>
+        <input type="text" id="text-input" placeholder="Enter text to synthesize">
+        <input type="file" id="speaker-file" accept="audio/wav">
+        <button id="say-button" onclick="say()">Say</button>
+        <audio id="audio-player" controls></audio>
+    </div>
 
-<script>
-    // Post the text and speaker audio to the API and play the streaming response
-    async function say() {
-        const text = document.getElementById("text-input").value;
-        const speakerFile = document.getElementById("speaker-file").files[0];
-        const formData = new FormData();
-        formData.append("text", text);
-        formData.append("speaker_wav", speakerFile);
-        const response = await fetch("/v1/audio/tts", {
-            method: "POST",
-            body: formData,
-        });
-        console.log(response)
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audioPlayer = document.getElementById("audio-player");
-        audioPlayer.src = audioUrl;
-    }
-    // Post the audio to the API and show transcribed text
-    async function transcribe() {
-        const audioFile = document.getElementById("audio-transcribe").files[0];
-        const formData = new FormData();
-        formData.append("model", "marianbasti/distil-whisper-large-v3-es");
-        formData.append("file", audioFile);
-        const response = await fetch("/v1/audio/transcriptions", {
-            method: "POST",
-            body: formData,
-        });
-        const transcribed = await response.text();
-        const transcribedElement = document.getElementById("transcribed");
-        transcribedElement.innerText = transcribed;
-    }
-</script>
+    <div class="container">
+        <h1>Whisper Inference API</h1>
+        <input type="file" id="audio-transcribe" accept="audio/wav">
+        <button id="transcribe-button" onclick="transcribe()">Transcribe</button>
+        <a id="transcribed"></a>
+    </div>
+
+    <script>
+        // Post the text and speaker audio to the API and play the streaming response
+        async function say() {
+            const text = document.getElementById("text-input").value;
+            const speakerFile = document.getElementById("speaker-file").files[0];
+            const formData = new FormData();
+            formData.append("text", text);
+            formData.append("speaker_wav", speakerFile);
+
+            try {
+                const response = await fetch("/v1/audio/tts", {
+                    method: "POST",
+                    body: formData,
+                });
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById("audio-player").src = audioUrl;
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        // Post the audio to the API and show transcribed text
+        async function transcribe() {
+            const audioFile = document.getElementById("audio-transcribe").files[0];
+            const formData = new FormData();
+            formData.append("model", "marianbasti/distil-whisper-large-v3-es");
+            formData.append("file", audioFile);
+
+            try {
+                const response = await fetch("/v1/audio/transcriptions", {
+                    method: "POST",
+                    body: formData,
+                });
+                const transcribed = await response.text();
+                document.getElementById("transcribed").innerText = transcribed;
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+    </script>
 </body>
 </html>
     """
