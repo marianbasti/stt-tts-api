@@ -1,6 +1,6 @@
 # stt-tts-api
 
-FastAPI server to serve whisper transcription models and xtts speech synthesis models.
+FastAPI server to serve whisper transcription models and xtts speech synthesis models for an end-to-end voice conversational agent.
 
 Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui)
 
@@ -21,8 +21,9 @@ Download and place the XTTS-v2 model from [🤗HuggingFace](https://huggingface.
 cd models
 git clone https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish
 cd ..
-# Set TTS model path as environment variable
+# Optionally, set TTS model path and whisper model HF ID as environment variables. These are the default values
 export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
+export WHISPER_MODEL=marianbasti/distil-whisper-large-v3-es
 ```
 ## Usage
 
@@ -31,6 +32,12 @@ export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
 uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
+
+### Simple web interface
+A minimalistic web GUI runs on the base URL. It enables
+- Interacting with the TTS model.
+- Interacting with the transcription model.
+- Testing the full pipeline with an external OpenAI-compatible API LLM. Just set the backend URL, API key and an optional system prompt.
 
 ### Endpoint: `/v1/audio/transcriptions`
 
@@ -92,9 +99,6 @@ curl -X POST "http://localhost:8080/v1/audio/tts" \
 **Response:**
 
 The response will be a binary WAV file containing the synthesized speech.
-
-### Simple web interface
-A minimalistic web GUI for interacting with both models runs on the base URL.
 
 ## License
 
