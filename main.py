@@ -230,8 +230,7 @@ async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(.
 # Serve test.html webpage
 @app.get("/")
 async def main():
-    content = """
-<!DOCTYPE html>
+    content = """<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -323,7 +322,7 @@ async def main():
             <h1>XTTS Inference API</h1>
             <input type="text" id="text-input" placeholder="Enter text to synthesize">
             <input type="file" id="speaker-file" accept="audio/wav">
-            <button id="say-button" onclick="say(document.getElementById("text-input").value)">Say</button>
+            <button id="say-button" onclick="measureTime(() => say(document.getElementById('text-input').value))">Say</button>
         </div>
 
         <div class="container">
