@@ -11,3 +11,4 @@ coqui-tts
 librosa
 requests
 numpy
+soundfile

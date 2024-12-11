@@ -18,6 +18,10 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
+from utils.generate_face_shapes import generate_facial_data_from_bytes
+from utils.model.model import load_model
+from utils.config import config
+
 # Set tts model path
 TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_Argentinian-Spanish_1.1")
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', "marianbasti/distil-whisper-large-v3-es")
@@ -125,6 +129,11 @@ WHISPER_DEFAULT_SETTINGS = {
 
 model, config = get_tts_model(TTS_MODEL)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+model_path = 'utils/model/model.pth'
+blendshape_model = load_model(model_path, config, device)
+
 @app.post('/v1/audio/transcriptions')
 async def transcriptions(model: str = Form(...),
                          file: UploadFile = File(...),
@@ -226,6 +235,13 @@ async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(.
 
     return Response(tts(), media_type="audio/wav")
 
+@app.post('/audio_to_blendshapes')
+async def audio_to_blendshapes_route(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+    generated_facial_data = generate_facial_data_from_bytes(audio_bytes, blendshape_model, device, config)
+    generated_facial_data_list = generated_facial_data.tolist() if isinstance(generated_facial_data, np.ndarray) else generated_facial_data
+
+    return {'blendshapes': generated_facial_data_list}
 
 # Serve test.html webpage
 @app.get("/")
