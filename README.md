@@ -1,8 +1,8 @@
 # stt-tts-api
 
-FastAPI server to serve whisper transcription models and xtts speech synthesis models for an end-to-end voice conversational agent.
+FastAPI server to serve whisper transcription models, xtts speech synthesis and audio-to-blendshape face animation models, for an end-to-end voice conversational agent.
 
-Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui)
+Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui) and [NeuroSync](https://github.com/AnimaVR/NeuroSync_Local_API)
 
 ## Setup
 This was built & tested on Python 3.12.3, Ubutu 24.
