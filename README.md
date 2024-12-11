@@ -100,6 +100,28 @@ curl -X POST "http://localhost:8080/v1/audio/tts" \
 
 The response will be a binary WAV file containing the synthesized speech.
 
+### Endpoint: `/v1/audio_to_blendshapes`
+
+**Description:** This endpoint accepts an audio file and returns blendshape coefficients for facial animation.
+
+**Parameters:**
+
+- `file` (UploadFile, required): The audio file to be analyzed.
+- `model` (str, optional): The model to be used for generating blendshapes. Default is `default_blendshape_model`.
+
+**Responses:**
+
+- **200 OK**: Returns the blendshape coefficients in JSON format.
+- **400 Bad Request**: Returns an error if the request parameters are invalid.
+
+**Example Request:**
+
+```bash
+curl -X POST "http://localhost:8080/v1/audio/blendshapes" \
+-F "file=@path_to_your_audio_file.wav" \
+-F "model=default_blendshape_model"
+```
+
 ## License
 
 MIT

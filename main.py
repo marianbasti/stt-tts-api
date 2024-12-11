@@ -235,7 +235,7 @@ async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(.
 
     return Response(tts(), media_type="audio/wav")
 
-@app.post('/audio_to_blendshapes')
+@app.post('/v1/audio_to_blendshapes')
 async def audio_to_blendshapes_route(file: UploadFile = File(...)):
     audio_bytes = await file.read()
     generated_facial_data = generate_facial_data_from_bytes(audio_bytes, blendshape_model, device, config)
