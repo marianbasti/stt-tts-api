@@ -8,3 +8,6 @@ transformers
 optimum
 accelerate
 coqui-tts
+librosa
+requests
+numpy
