@@ -131,7 +131,7 @@ model, config = get_tts_model(TTS_MODEL)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-model_path = 'utils/model/model.pth'
+model_path = '/models/neurosync.pth'
 blendshape_model = load_model(model_path, config, device)
 
 @app.post('/v1/audio/transcriptions')

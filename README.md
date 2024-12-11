@@ -25,6 +25,14 @@ cd ..
 export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
 export WHISPER_MODEL=marianbasti/distil-whisper-large-v3-es
 ```
+
+Download and place the NeuroSync model from [🤗HuggingFace](https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape/resolve/main/model.pth?download=true) in `/models/`, and rename it as `neurosync.pth`:
+```bash
+cd models
+wget https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape/resolve/main/model.pth
+mv model.pth neurosync.pth
+cd ..
+```
 ## Usage
 
 ### Run server
