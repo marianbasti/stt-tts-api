@@ -24,7 +24,7 @@ from utils.config import config
 
 # Set tts model path
 TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_Argentinian-Spanish_1.1")
-WHISPER_MODEL = os.getenv('WHISPER_MODEL', "marianbasti/distil-whisper-large-v3-es")
+WHISPER_MODEL = os.getenv('WHISPER_MODEL', "openai/whisper-large-v3-turbo")
 
 UPLOAD_DIR="/tmp"
 
