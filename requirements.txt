@@ -12,3 +12,6 @@ librosa
 requests
 numpy
 soundfile
+timecode
+pygame
+pandas
