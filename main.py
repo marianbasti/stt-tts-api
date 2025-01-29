@@ -114,6 +114,15 @@ def transcribe(audio_path: str, whisper_model: str, **whisper_args):
     print(f"Transcription took {end_time - start_time:.2f} seconds")
     return transcript
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+if not os.environ.get("NO_TTS", False):
+    model, config = get_tts_model(TTS_MODEL)
+
+if not os.environ.get("NO_NEUROSYNC", False):
+    neurosync_model_path = '/models/neurosync.pth'
+    blendshape_model = load_model(neurosync_model_path, config, device)
+
 WHISPER_DEFAULT_SETTINGS = {
     "whisper_model": WHISPER_MODEL,
     "temperature": 0.0,
@@ -126,13 +135,6 @@ WHISPER_DEFAULT_SETTINGS = {
     "task": "transcribe",
     "language": "es",
 }
-
-model, config = get_tts_model(TTS_MODEL)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-model_path = '/models/neurosync.pth'
-blendshape_model = load_model(model_path, config, device)
 
 @app.post('/v1/audio/transcriptions')
 async def transcriptions(model: str = Form(...),
