@@ -1,6 +1,5 @@
 .python-version
 __pycache__/
 .venv/
-*.sh
 assets/
 models/*

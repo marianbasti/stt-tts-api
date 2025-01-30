@@ -23,7 +23,7 @@ from utils.model.model import load_model
 from utils.config import config
 
 # Set tts model path
-TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_Argentinian-Spanish_1.1")
+TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_argentinian-spanish_v1.1")
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', "openai/whisper-large-v3-turbo")
 
 UPLOAD_DIR="/tmp"
@@ -118,10 +118,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
-
-if not os.environ.get("NO_NEUROSYNC", False):
-    neurosync_model_path = '/models/neurosync.pth'
-    blendshape_model = load_model(neurosync_model_path, config, device)
 
 WHISPER_DEFAULT_SETTINGS = {
     "whisper_model": WHISPER_MODEL,
@@ -236,14 +232,6 @@ async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(.
         return wav_bytes
 
     return Response(tts(), media_type="audio/wav")
-
-@app.post('/v1/audio_to_blendshapes')
-async def audio_to_blendshapes_route(file: UploadFile = File(...)):
-    audio_bytes = await file.read()
-    generated_facial_data = generate_facial_data_from_bytes(audio_bytes, blendshape_model, device, config)
-    generated_facial_data_list = generated_facial_data.tolist() if isinstance(generated_facial_data, np.ndarray) else generated_facial_data
-
-    return {'blendshapes': generated_facial_data_list}
 
 # Serve test.html webpage
 @app.get("/")
