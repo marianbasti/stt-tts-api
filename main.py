@@ -1,10 +1,16 @@
+import os
+import sys
+
+# Add NeuroSync_Local_API to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, Form, UploadFile, File
 from fastapi import HTTPException, status, Response
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 
-import os, io
+import io
 import shutil
 from functools import lru_cache
 from typing import Any, List, Union, Optional
@@ -18,9 +24,10 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from transformers import pipeline
 from transformers.utils import is_flash_attn_2_available
 
-from utils.generate_face_shapes import generate_facial_data_from_bytes
-from utils.model.model import load_model
-from utils.config import config
+# Update imports to use absolute paths
+from NeuroSync_Local_API.utils.model.model import load_model as load_neurosync_model
+from NeuroSync_Local_API.utils.generate_face_shapes import generate_facial_data_from_bytes
+from NeuroSync_Local_API.utils.config import config as neurosync_config
 
 # Set tts model path
 TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_argentinian-spanish_v1.1")
@@ -118,6 +125,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
+
+# Add NeuroSync model loading
+neurosync_model_path = 'NeuroSync_Local_API/utils/model/model.pth'
+try:
+    blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
+except RuntimeError as e:
+    print(f"Warning: Failed to load NeuroSync model: {e}")
+    blendshape_model = None
 
 WHISPER_DEFAULT_SETTINGS = {
     "whisper_model": WHISPER_MODEL,
@@ -232,6 +247,36 @@ async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(.
         return wav_bytes
 
     return Response(tts(), media_type="audio/wav")
+
+@app.post("/v1/audio_to_blendshapes")
+async def audio_to_blendshapes(audio: UploadFile = File(...)):
+    """Convert audio to facial blendshapes using NeuroSync model"""
+    if blendshape_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="NeuroSync model is not available"
+        )
+    
+    try:
+        audio_bytes = await audio.read()
+        generated_facial_data = generate_facial_data_from_bytes(
+            audio_bytes, 
+            blendshape_model, 
+            device, 
+            neurosync_config
+        )
+        
+        # Convert numpy array to list if needed
+        generated_facial_data_list = generated_facial_data.tolist() if isinstance(generated_facial_data, np.ndarray) else generated_facial_data
+        
+        return JSONResponse({
+            'blendshapes': generated_facial_data_list
+        })
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 # Serve test.html webpage
 @app.get("/")
