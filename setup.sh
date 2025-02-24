@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# First remove any existing NeuroSync_Player directory if it exists
+rm -rf NeuroSync_Player
+
 # Initialize and update submodules
-git submodule sync
-git submodule init
+echo "Initializing submodules..."
+git submodule add https://github.com/AnimaVR/NeuroSync_Player.git NeuroSync_Player
 git submodule update --init --recursive
 
 # Create and initialize .venv if it doesn't exist
@@ -27,14 +30,15 @@ mkdir -p models
 # Download the NEUROSYNC model from Hugging Face
 echo "Downloading NEUROSYNC model..."
 git lfs clone https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape tmp_model
+mkdir -p NeuroSync_Player/checkpoint
 mv tmp_model/* NeuroSync_Player/checkpoint
 rm -rf tmp_model
 
-# Create symbolic links to NeuroSync utilities
-ln -sf NeuroSync_Player checkpoint
+# Download the XTTS model from Hugging Face
+echo "Downloading XTTS model..."
+git lfs clone https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish models/XTTS-v2-argentinian-spanish
 
 chmod +x create_package.sh
 ./create_package.sh
 
-# Install dependencies
-echo "Setup complete! The NEUROSYNC model has been placed in utils/model"
+echo "Setup complete! Models have been placed in their respective directories"

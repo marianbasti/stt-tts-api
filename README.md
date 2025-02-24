@@ -11,27 +11,13 @@ We recommend using a python virtual environment.
 ```bash
 git clone https://github.com/marianbasti/stt-tts-api
 cd stt-tts-api
-python3 -m venv .venv
-source env/bin/activate
-pip install -r requirements.txt
+./setup.sh
 ```
 
-Download and place the XTTS-v2 model from [🤗HuggingFace](https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish) in `/models/`:
 ```bash
-cd models
-git clone https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish
-cd ..
 # Optionally, set TTS model path and whisper model HF ID as environment variables. These are the default values
 export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
-export WHISPER_MODEL=marianbasti/distil-whisper-large-v3-es
-```
-
-Download and place the NeuroSync model from [🤗HuggingFace](https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape/resolve/main/model.pth?download=true) in `/models/`, and rename it as `neurosync.pth`:
-```bash
-cd models
-wget https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape/resolve/main/model.pth
-mv model.pth neurosync.pth
-cd ..
+export WHISPER_MODEL=openai/whisper-large-v3-turbo
 ```
 ## Usage
 
@@ -69,7 +55,7 @@ A minimalistic web GUI runs on the base URL. It enables
 
 ```bash
 curl -X POST "http://localhost:8080/v1/audio/transcriptions" \
--F "model=marianbasti/distil-whisper-large-v3-es" \
+-F "model=openai/whisper-large-v3-turbo" \
 -F "file=@path_to_your_audio_file.wav" \
 -F "response_format=json"
 ```

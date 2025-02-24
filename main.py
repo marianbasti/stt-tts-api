@@ -1,33 +1,36 @@
 import os
 import sys
+import io
+import shutil
+import time
+import numpy as np
+from datetime import timedelta
+from functools import lru_cache
+from typing import Any, List, Union, Optional
 
-# Add NeuroSync_Local_API to Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+import torch
+import soundfile as sf
 from fastapi import FastAPI, Form, UploadFile, File
 from fastapi import HTTPException, status, Response
 from fastapi.responses import Response, JSONResponse
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
+from transformers import (
+    AutoModelForSpeechSeq2Seq, 
+    AutoProcessor, 
+    pipeline
+)
 
-import io
-import shutil
-from functools import lru_cache
-from typing import Any, List, Union, Optional
+# Add NeuroSync_Player to Python path and import dependencies
+NEUROSYNC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'NeuroSync_Player')
+if (NEUROSYNC_PATH not in sys.path):
+    sys.path.append(NEUROSYNC_PATH)
+    # Add the checkpoint/utils path to sys.path as well
+    sys.path.append(os.path.join(NEUROSYNC_PATH, 'checkpoint', 'utils'))
 
-from datetime import timedelta
-import time
-import soundfile as sf
-
-import torch
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-from transformers import pipeline
-from transformers.utils import is_flash_attn_2_available
-
-# Update imports to use absolute paths
-from NeuroSync_Local_API.utils.model.model import load_model as load_neurosync_model
-from NeuroSync_Local_API.utils.generate_face_shapes import generate_facial_data_from_bytes
-from NeuroSync_Local_API.utils.config import config as neurosync_config
+from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.model.model import load_model as load_neurosync_model
+from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.generate_face_shapes import generate_facial_data_from_bytes
+from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.config import config as neurosync_config
 
 # Set tts model path
 TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_argentinian-spanish_v1.1")
@@ -59,7 +62,7 @@ def get_whisper_model_faster(whisper_model: str):
         model=whisper_model,
         torch_dtype=torch.float16,
         device="cuda:0", # or mps for Mac devices
-        model_kwargs={"attn_implementation": "flash_attention_2"} if is_flash_attn_2_available() else {"attn_implementation": "sdpa"},
+        model_kwargs={"attn_implementation": "flash_attention_2"},
     )
     return model
 
@@ -88,8 +91,6 @@ def get_tts_model(model_dir: str):
     config = XttsConfig()
     config.load_json(f"{model_dir}/config.json")
     model = Xtts.init_from_config(config)
-    model.load_checkpoint(config, checkpoint_dir=model_dir, eval=True)
-    model.cuda()
     return model, config
 
 def transcribe_faster(audio_path: str, whisper_model: str, **whisper_args):
@@ -127,11 +128,21 @@ if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
 
 # Add NeuroSync model loading
-neurosync_model_path = 'NeuroSync_Local_API/utils/model/model.pth'
+neurosync_model_path = 'NeuroSync_Player/checkpoint/model.pth'
 try:
     blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
 except RuntimeError as e:
     print(f"Warning: Failed to load NeuroSync model: {e}")
+    blendshape_model = None
+
+# Update NeuroSync model loading with better error handling
+neurosync_model_path = 'NeuroSync_Player/checkpoint/utils/model/model.pth'
+try:
+    print("Loading NeuroSync model...")
+    blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
+    print("NeuroSync model loaded successfully")
+except Exception as e:
+    print(f"Error loading NeuroSync model: {e}")
     blendshape_model = None
 
 WHISPER_DEFAULT_SETTINGS = {
@@ -257,8 +268,20 @@ async def audio_to_blendshapes(audio: UploadFile = File(...)):
             detail="NeuroSync model is not available"
         )
     
+    # Validate file type
+    if not audio.filename.endswith('.wav'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only WAV files are supported"
+        )
+    
     try:
+        # Read audio bytes
+        print("Reading audio file...")
         audio_bytes = await audio.read()
+        
+        # Generate facial data
+        print("Generating facial blendshapes...")
         generated_facial_data = generate_facial_data_from_bytes(
             audio_bytes, 
             blendshape_model, 
@@ -266,16 +289,33 @@ async def audio_to_blendshapes(audio: UploadFile = File(...)):
             neurosync_config
         )
         
-        # Convert numpy array to list if needed
-        generated_facial_data_list = generated_facial_data.tolist() if isinstance(generated_facial_data, np.ndarray) else generated_facial_data
+        if generated_facial_data is None or len(generated_facial_data) == 0:
+            raise ValueError("Failed to generate facial data")
+            
+        # Convert numpy array to list for JSON serialization
+        if isinstance(generated_facial_data, np.ndarray):
+            generated_facial_data_list = generated_facial_data.tolist()
+        else:
+            generated_facial_data_list = generated_facial_data
+            
+        print(f"Successfully generated {len(generated_facial_data_list)} frames of blendshape data")
         
         return JSONResponse({
+            'status': 'success',
+            'frames': len(generated_facial_data_list),
             'blendshapes': generated_facial_data_list
         })
+        
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(ve)
+        )
     except Exception as e:
+        print(f"Error processing audio: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=f"Failed to process audio: {str(e)}"
         )
 
 # Serve test.html webpage
@@ -432,7 +472,7 @@ async def main():
         async function transcribe() {
             const audioFile = document.getElementById("audio-transcribe").files[0];
             const formData = new FormData();
-            formData.append("model", "marianbasti/distil-whisper-large-v3-es");
+            formData.append("model", "openai/whisper-large-v3-turbo");
             formData.append("file", audioFile);
 
             try {
@@ -454,7 +494,7 @@ async def main():
             const apiKey = document.getElementById("openai-api-key").value;
             const systemMessage = document.getElementById("system-message").value;
             const formData = new FormData();
-            formData.append("model", "marianbasti/distil-whisper-large-v3-es");
+            formData.append("model", "openai/whisper-large-v3-turbo");
             formData.append("file", audioFile);
 
             try {
