@@ -12,6 +12,7 @@ We recommend using a python virtual environment.
 git clone https://github.com/marianbasti/stt-tts-api
 cd stt-tts-api
 ./setup.sh
+pip install --no-build-isolation flash-attn
 ```
 
 ```bash
@@ -111,9 +112,8 @@ The response will be a binary WAV file containing the synthesized speech.
 **Example Request:**
 
 ```bash
-curl -X POST "http://localhost:8080/v1/audio/blendshapes" \
--F "file=@path_to_your_audio_file.wav" \
--F "model=default_blendshape_model"
+curl -X POST "http://localhost:8080/v1/audio_to_blendshapes" \
+-F "audio=@path_to_your_audio_file.wav"
 ```
 
 ## License

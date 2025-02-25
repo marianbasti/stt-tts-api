@@ -88,10 +88,34 @@ def get_whisper_model(whisper_model: str):
     return pipe
 
 def get_tts_model(model_dir: str):
-    """Get a TTS model"""
+    """Get a TTS model and ensure tokenizer is initialized"""
     config = XttsConfig()
     config.load_json(f"{model_dir}/config.json")
+    
+    # Set tokenizer file path
+    tokenizer_file = os.path.join(model_dir, "vocab.json")
+    if not os.path.exists(tokenizer_file):
+        raise RuntimeError(f"Tokenizer file not found at {tokenizer_file}")
+    config.model_args['tokenizer_file'] = tokenizer_file
+    
+    # Create model instance
     model = Xtts.init_from_config(config)
+    
+    # Load checkpoint
+    checkpoint_path = os.path.join(model_dir, "model.pth")
+    if not os.path.exists(checkpoint_path):
+        raise RuntimeError(f"Checkpoint not found at {checkpoint_path}")
+    
+    model.load_checkpoint(config=config, checkpoint_path=checkpoint_path)
+    
+    # Move model to device
+    if torch.cuda.is_available():
+        model.cuda()
+    
+    # Initialize tokenizer explicitly
+    if model.tokenizer is None:
+        raise RuntimeError("Tokenizer failed to initialize")
+        
     return model, config
 
 def transcribe_faster(audio_path: str, whisper_model: str, **whisper_args):
@@ -230,23 +254,37 @@ async def transcriptions(model: str = Form(...),
 
 @app.post("/v1/audio/tts")
 async def generate_audio(text: str = Form(...), speaker_wav: UploadFile = File(...)):
-
-    def tts():
-        t0 = time.time()
-        output = model.synthesize(
-            text,
-            config,
-            speaker_wav.file,
-            language="es"
+    if not model or not hasattr(model, 'tokenizer') or model.tokenizer is None:
+        raise HTTPException(
+            status_code=500,
+            detail="TTS model or tokenizer not properly initialized"
         )
 
-        inference_time = time.time() - t0
-        print(f"Time to generate audio: {round(inference_time*1000)} milliseconds")
-        with io.BytesIO() as wav_io:
-            sf.write(wav_io, output['wav'], samplerate=22050, format='WAV')
-            wav_io.seek(0)
-            wav_bytes = wav_io.read()
-        return wav_bytes
+    def tts():
+        try:
+            t0 = time.time()
+            output = model.synthesize(
+                text,
+                config,
+                speaker_wav.file,
+                language="es"
+            )
+
+            inference_time = time.time() - t0
+            print(f"Time to generate audio: {round(inference_time*1000)} milliseconds")
+            
+            with io.BytesIO() as wav_io:
+                sf.write(wav_io, output['wav'], samplerate=22050, format='WAV')
+                wav_io.seek(0)
+                wav_bytes = wav_io.read()
+            return wav_bytes
+            
+        except Exception as e:
+            print(f"Error in TTS generation: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"TTS generation failed: {str(e)}"
+            )
 
     return Response(tts(), media_type="audio/wav")
 
