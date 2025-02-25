@@ -1,12 +1,24 @@
 #!/bin/bash
 
 # First remove any existing NeuroSync_Player directory if it exists
-rm -rf NeuroSync_Player
+if [ -d "NeuroSync_Player" ]; then
+    echo "Removing existing NeuroSync_Player directory..."
+    rm -rf NeuroSync_Player
+    # Also remove it from .gitmodules if it exists
+    git config --file=.gitmodules --remove-section "submodule.NeuroSync_Player" 2>/dev/null
+    git add .gitmodules
+    # Remove from .git/config
+    git config --remove-section "submodule.NeuroSync_Player" 2>/dev/null
+    # Clean up git cache
+    git rm --cached NeuroSync_Player 2>/dev/null
+    # Remove any leftover git index entries
+    rm -f .git/modules/NeuroSync_Player 2>/dev/null
+fi
 
 # Initialize and update submodules
 echo "Initializing submodules..."
-git submodule add https://github.com/AnimaVR/NeuroSync_Player.git NeuroSync_Player
-git submodule update --init --recursive
+git submodule add --force https://github.com/AnimaVR/NeuroSync_Player.git NeuroSync_Player
+git submodule update --init --recursive --force
 
 # Create and initialize .venv if it doesn't exist
 if [ ! -d ".venv" ]; then
@@ -48,4 +60,4 @@ git lfs clone https://huggingface.co/marianbasti/XTTS-v2-argentinian-spanish mod
 chmod +x create_package.sh
 ./create_package.sh
 
-echo "Setup complete! Models have been placed in their respective directories"
+echo "Setup complete! Models have been placed in their respective directories"m
