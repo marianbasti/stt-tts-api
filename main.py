@@ -21,19 +21,20 @@ from transformers import (
     pipeline
 )
 
-# Add NeuroSync_Player to Python path and import dependencies
-NEUROSYNC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'NeuroSync_Player')
-if (NEUROSYNC_PATH not in sys.path):
+# Add models directory to Python path
+MODELS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
+NEUROSYNC_PATH = os.path.join(MODELS_PATH, 'NEUROSYNC_Audio_To_Face_Blendshape')
+if MODELS_PATH not in sys.path:
+    sys.path.append(MODELS_PATH)
+if NEUROSYNC_PATH not in sys.path:
     sys.path.append(NEUROSYNC_PATH)
-    # Add the checkpoint/utils path to sys.path as well
-    sys.path.append(os.path.join(NEUROSYNC_PATH, 'checkpoint', 'utils'))
 
-from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.model.model import load_model as load_neurosync_model
-from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.generate_face_shapes import generate_facial_data_from_bytes
-from models.NEUROSYNC_Audio_To_Face_Blendshape.utils.config import config as neurosync_config
+from NEUROSYNC_Audio_To_Face_Blendshape.utils.model.model import load_model as load_neurosync_model
+from NEUROSYNC_Audio_To_Face_Blendshape.utils.generate_face_shapes import generate_facial_data_from_bytes
+from NEUROSYNC_Audio_To_Face_Blendshape.utils.config import config as neurosync_config
 
 # Set tts model path
-TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2_argentinian-spanish_v1.1")
+TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2-argentinian-spanish")
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', "openai/whisper-large-v3-turbo")
 
 UPLOAD_DIR="/tmp"
@@ -128,21 +129,11 @@ if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
 
 # Add NeuroSync model loading
-neurosync_model_path = 'NeuroSync_Player/checkpoint/model.pth'
+neurosync_model_path = 'models/NEUROSYNC_Audio_To_Face_Blendshape/model.pth'
 try:
     blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
 except RuntimeError as e:
     print(f"Warning: Failed to load NeuroSync model: {e}")
-    blendshape_model = None
-
-# Update NeuroSync model loading with better error handling
-neurosync_model_path = 'NeuroSync_Player/checkpoint/utils/model/model.pth'
-try:
-    print("Loading NeuroSync model...")
-    blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
-    print("NeuroSync model loaded successfully")
-except Exception as e:
-    print(f"Error loading NeuroSync model: {e}")
     blendshape_model = None
 
 WHISPER_DEFAULT_SETTINGS = {

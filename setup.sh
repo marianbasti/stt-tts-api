@@ -30,8 +30,15 @@ mkdir -p models
 # Download the NEUROSYNC model from Hugging Face
 echo "Downloading NEUROSYNC model..."
 git lfs clone https://huggingface.co/AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape tmp_model
-mkdir -p NeuroSync_Player/checkpoint
-mv tmp_model/* NeuroSync_Player/checkpoint
+
+# Create model directory and copy files preserving structure
+mkdir -p models/NEUROSYNC_Audio_To_Face_Blendshape
+cp -r tmp_model/* models/NEUROSYNC_Audio_To_Face_Blendshape/
+
+# Create a utils symlink at the top level for the NEUROSYNC model's imports to work
+ln -sf models/NEUROSYNC_Audio_To_Face_Blendshape/utils utils
+
+# Clean up tmp directory
 rm -rf tmp_model
 
 # Download the XTTS model from Hugging Face
