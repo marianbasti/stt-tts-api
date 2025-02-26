@@ -26,7 +26,6 @@ if [ ! -d ".venv" ]; then
     python3 -m venv .venv
     source .venv/bin/activate
     pip install --upgrade pip
-    pip install -r requirements.txt
 else
     echo "Virtual environment already exists."
     source .venv/bin/activate
@@ -34,7 +33,7 @@ fi
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install -r requirements.txt
+pip install -r requirements.txt --no-cache-dir
 
 # Create models directory if it doesn't exist
 mkdir -p models
