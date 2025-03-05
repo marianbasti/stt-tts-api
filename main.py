@@ -62,8 +62,8 @@ def get_whisper_model_faster(whisper_model: str):
         "automatic-speech-recognition",
         model=whisper_model,
         torch_dtype=torch.float16,
-        device="cuda:0", # or mps for Mac devices
-        model_kwargs={"attn_implementation": "flash_attention_2"},
+        device="cuda:0" if torch.cuda.is_available() else "cpu",
+        model_kwargs={"use_flash_attention_2": False},  # Disable Flash Attention 2
     )
     return model
 
