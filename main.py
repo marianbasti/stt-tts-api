@@ -127,7 +127,8 @@ def transcribe_faster(audio_path: str, whisper_model: str, **whisper_args):
         audio_path,
         chunk_length_s=30,
         batch_size=24,
-        return_timestamps=False
+        return_timestamps=False,
+        generate_kwargs={"language": "spanish"}
     )
     end_time = time.time()
     print(f"Transcription took {end_time - start_time:.2f} seconds")
