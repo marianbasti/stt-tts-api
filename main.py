@@ -348,6 +348,45 @@ async def audio_to_blendshapes(audio: UploadFile = File(...)):
             detail=f"Failed to process audio: {str(e)}"
         )
 
+def check_whisper():
+    try:
+        transcriber = get_whisper_model_faster(WHISPER_MODEL)
+        return {"status": "healthy", "model": WHISPER_MODEL}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+def check_tts():
+    try:
+        if not model or not hasattr(model, 'tokenizer') or model.tokenizer is None:
+            return {"status": "unhealthy", "error": "TTS model not initialized"}
+        return {"status": "healthy", "model": TTS_MODEL}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+def check_neurosync():
+    try:
+        if blendshape_model is None:
+            return {"status": "unhealthy", "error": "NeuroSync model not loaded"}
+        return {"status": "healthy", "model": neurosync_model_path}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+@app.get("/health")
+async def health_check():
+    health_status = {
+        "whisper": check_whisper(),
+        "tts": check_tts(),
+        "neurosync": check_neurosync(),
+    }
+    
+    all_healthy = all(component["status"] == "healthy" for component in health_status.values())
+    
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "components": health_status,
+        "timestamp": time.time()
+    }
+
 # Serve test.html webpage
 @app.get("/")
 async def main():
