@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="api-config">
+            <div class="config-row">
+                <input type="text" id="api-key" placeholder="OpenAI API Key" class="api-input" />
+                <input type="text" id="api-url" placeholder="OpenAI API URL (optional)" class="api-input" />
+                <button id="save-config" class="config-button">Save Config</button>
+                <div id="api-status" class="status-indicator"></div>
+            </div>
+            <div class="config-row">
+                <label class="toggle-label">
+                    <input type="checkbox" id="chat-toggle" checked>
+                    <span class="toggle-text">Enable Chat Response</span>
+                </label>
+            </div>
+        </div>
+        <div class="chat-container">
+            <div id="messages" class="messages"></div>
+            <div class="control-panel">
+                <input type="file" id="speaker-sample" accept="audio/*" class="speaker-input" />
+                <label for="speaker-sample">Select Voice Sample</label>
+                <button id="talk-button" class="talk-button">Hold to Talk</button>
+                <div id="status" class="status">Ready</div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', path='script.js') }}"></script>
+</body>
+</html>

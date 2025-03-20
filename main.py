@@ -11,8 +11,10 @@ from typing import Any, List, Union, Optional
 import torch
 import soundfile as sf
 from fastapi import FastAPI, Form, UploadFile, File
-from fastapi import HTTPException, status, Response
+from fastapi import HTTPException, status, Response, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import Response, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 from transformers import (
@@ -387,221 +389,16 @@ async def health_check():
         "timestamp": time.time()
     }
 
-# Serve test.html webpage
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates
+templates = Jinja2Templates(directory="templates")
+
 @app.get("/")
-async def main():
-    content = """<!DOCTYPE html>
-<html lang="en">
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XTTS & Whisper Inference API</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin: 20px;
-            width: 300px;
-            text-align: center;
-        }
-
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-
-        input[type="text"],
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-            overflow: hidden;
-        }
-
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #audio-player {
-            width: 100%;
-            margin-top: 15px;
-        }
-
-        #transcribed {
-            display: block;
-            margin-top: 10px;
-            color: #555;
-            font-style: italic;
-            word-wrap: break-word;
-        }
-
-        #llm-response {
-            margin-top: 10px;
-            color: #555;
-            font-style: italic;
-        }
-
-        .row {
-            display: flex;
-            flex-direction: row;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="row">
-        <!-- Left Column -->
-        <div class="container">
-            <h1>XTTS Inference API</h1>
-            <input type="text" id="text-input" placeholder="Enter text to synthesize">
-            <input type="file" id="speaker-file" accept="audio/wav">
-            <button id="say-button" onclick="measureTime(() => say(document.getElementById('text-input').value))">Say</button>
-        </div>
-
-        <div class="container">
-            <h1>Whisper Inference API</h1>
-            <input type="file" id="audio-transcribe" accept="audio/wav">
-            <button id="transcribe-button" onclick="transcribe()">Transcribe</button>
-            <a id="transcribed"></a>
-        </div>
-
-        <!-- Right Column for LLM interaction -->
-        <div class="container">
-            <h1>LLM Interaction</h1>
-            <input type="text" id="openai-base-url" placeholder="OpenAI Base URL">
-            <input type="text" id="openai-api-key" placeholder="OpenAI API Key">
-            <input type="text" id="system-message" placeholder="System message to contextualize LLM">
-            <input type="file" id="audio-file" accept="audio/wav">
-            <button id="process-audio" onclick="measureTime(processAudio)">Process Audio</button>
-        </div>
-        <div class="container">
-            <a id="transcribed-llm"></a>
-            <p id="llm-response"></p>
-            <a id="time"></a>
-            <audio id="audio-player" controls></audio>
-        </div>
-    </div>
-
-    <script>
-        function measureTime(func, ...args) {
-            const startTime = performance.now();
-            func(...args).then(() => {
-                const endTime = performance.now();
-                document.getElementById("time").innerText = `Time taken: ${endTime - startTime} milliseconds`;
-            });
-        }
-        // Post the text and speaker audio to the API and play the streaming response
-        async function say(text) {
-            const speakerFile = document.getElementById("speaker-file").files[0];
-            const formData = new FormData();
-            formData.append("text", text);
-            formData.append("speaker_wav", speakerFile);
-
-            try {
-                const response = await fetch("/v1/audio/tts", {
-                    method: "POST",
-                    body: formData,
-                });
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                document.getElementById("audio-player").src = audioUrl;
-            } catch (error) {
-                console.error("Error:", error);
-            }
-        }
-
-        // Post the audio to the API and show transcribed text
-        async function transcribe() {
-            const audioFile = document.getElementById("audio-transcribe").files[0];
-            const formData = new FormData();
-            formData.append("model", "openai/whisper-large-v3-turbo");
-            formData.append("file", audioFile);
-
-            try {
-                const response = await fetch("/v1/audio/transcriptions", {
-                    method: "POST",
-                    body: formData,
-                });
-                const transcribed = await response.text();
-                document.getElementById("transcribed").innerText = transcribed;
-            } catch (error) {
-                console.error("Error:", error);
-            }
-        }
-
-        // Handle the entire LLM interaction flow
-        async function processAudio() {
-            const audioFile = document.getElementById("audio-file").files[0];
-            const baseUrl = document.getElementById("openai-base-url").value;
-            const apiKey = document.getElementById("openai-api-key").value;
-            const systemMessage = document.getElementById("system-message").value;
-            const formData = new FormData();
-            formData.append("model", "openai/whisper-large-v3-turbo");
-            formData.append("file", audioFile);
-
-            try {
-                // Step 1: Transcribe audio
-                const transcriptionResponse = await fetch("/v1/audio/transcriptions", {
-                    method: "POST",
-                    body: formData,
-                });
-                const transcription = await transcriptionResponse.text();
-                document.getElementById("transcribed-llm").innerText = transcription;
-
-                // Step 2: Send transcription to LLM
-                const llmResponse = await fetch(`${baseUrl}/chat/completions`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: "gpt-3.5-turbo",
-                        messages: [{role:"system", content:systemMessage},{ role: "user", content: transcription }]
-                    })
-                });
-
-                const llmData = await llmResponse.json();
-                const llmText = llmData.choices[0].message.content.replace('"text":"', '').replace('"', '');
-                document.getElementById("llm-response").innerText = llmText;
-
-                // Step 3: Send LLM response to XTTS for synthesis
-                say(llmText)
-            } catch (error) {
-                console.error("Error:", error);
-            }
-        }
-    </script>
-</body>
-
-</html>
-
-    """
-    return Response(content, media_type="text/html")
+# Additional routes will be imported from routers
+from routers import audio_router
+app.include_router(audio_router.router)
