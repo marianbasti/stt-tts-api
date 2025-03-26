@@ -42,6 +42,11 @@ neurosync_model_path = os.getenv('LOCAL_BLENDSHAPE_DIR')
 
 UPLOAD_DIR="/tmp"
 
+# Add environment variable checks
+TTS_CPU = os.getenv('TTS_CPU', '0').lower() in ('1', 'true')
+STT_CPU = os.getenv('STT_CPU', '0').lower() in ('1', 'true')
+NEUROSYNC_CPU = os.getenv('NEUROSYNC_CPU', '0').lower() in ('1', 'true')
+
 app = FastAPI()
 """
 curl https://api.openai.com/v1/audio/transcriptions \
@@ -61,17 +66,19 @@ response=$(curl -X POST -F "text="Hola, como estas?"" -F "speaker_wav=@"path/to/
 @lru_cache(maxsize=1)
 def get_whisper_model_faster(whisper_model: str):
     """Get a whisper model"""
+    device = "cpu" if STT_CPU else "cuda:0" if torch.cuda.is_available() else "cpu"
+    model_kwargs = {"use_flash_attention_2": True} if not STT_CPU else {} if torch.cuda.is_available() else "cpu"
     model = pipeline(
         "automatic-speech-recognition",
         model=whisper_model,
         torch_dtype=torch.float16,
-        device="cuda:0" if torch.cuda.is_available() else "cpu",
-        model_kwargs={"use_flash_attention_2": True},
+        device=device,
+        model_kwargs=model_kwargs,
     )
     return model
 
 def get_whisper_model(whisper_model: str):
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cpu" if STT_CPU else "cuda:0" if torch.cuda.is_available() else "cpu"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         whisper_model, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
@@ -112,7 +119,7 @@ def get_tts_model(model_dir: str):
     model.load_checkpoint(config=config, checkpoint_path=checkpoint_path)
     
     # Move model to device
-    if torch.cuda.is_available():
+    if not TTS_CPU and torch.cuda.is_available():
         model.cuda()
     
     # Initialize tokenizer explicitly
@@ -151,7 +158,7 @@ def transcribe(audio_path: str, whisper_model: str, **whisper_args):
     print(f"Transcription took {end_time - start_time:.2f} seconds")
     return transcript
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu') if NEUROSYNC_CPU else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
