@@ -4,15 +4,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const messagesContainer = document.getElementById('messages');
     const statusDiv = document.getElementById('status');
     const apiKeyInput = document.getElementById('api-key');
-    const apiUrlInput = document.getElementById('api-url');
-    const saveConfigButton = document.getElementById('save-config');
-    const apiStatusIndicator = document.getElementById('api-status');
     const chatToggle = document.getElementById('chat-toggle');
     
     let mediaRecorder;
     let audioChunks = [];
     let speakerSample = null;
     let totalStartTime;
+
+    // Create and insert configuration section
+    const configSection = document.createElement('div');
+    configSection.className = 'config-section model-section';
+    document.querySelector('.api-config').appendChild(configSection);
+
+    // Create model selector container
+    const modelContainer = document.createElement('div');
+    modelContainer.className = 'config-row';
+    modelContainer.innerHTML = `
+        <label for="model-select">Model:</label>
+        <select id="model-select" class="model-select">
+            <option value="">Auto-select model</option>
+        </select>
+    `;
+    configSection.appendChild(modelContainer);
+
+    // Get the elements after they're created
+    const modelSelect = document.getElementById('model-select');
+    const apiUrlInput = document.getElementById('api-url');
+    const saveConfigButton = document.getElementById('save-config');
+    const apiStatusIndicator = document.getElementById('api-status');
 
     // Load saved API configuration
     const savedApiKey = localStorage.getItem('openai_api_key');
@@ -33,17 +52,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Save API configuration
     saveConfigButton.addEventListener('click', async () => {
-        const apiKey = apiKeyInput.value.trim();
         const apiUrl = apiUrlInput.value.trim();
         
-        localStorage.setItem('openai_api_key', apiKey);
-        if (apiUrl) {
-            localStorage.setItem('openai_api_url', apiUrl);
-        } else {
-            localStorage.removeItem('openai_api_url');
+        try {
+            // Update backend configuration
+            const formData = new FormData();
+            formData.append('api_url', apiUrl);
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to update configuration');
+            }
+            
+            // Save to localStorage only after successful backend update
+            if (apiUrl) {
+                localStorage.setItem('openai_api_url', apiUrl);
+            } else {
+                localStorage.removeItem('openai_api_url');
+            }
+            
+            checkApiHealth();
+            await updateModelsList();
+        } catch (error) {
+            console.error('Failed to save configuration:', error);
+            apiStatusIndicator.classList.add('error');
         }
-        
-        checkApiHealth();
     });
 
     // Check API health status
@@ -52,15 +88,36 @@ document.addEventListener('DOMContentLoaded', () => {
             apiStatusIndicator.className = 'status-indicator';
             const response = await fetch('/health');
             const data = await response.json();
+            console.log('Health check response:', data);  // Debug log
             
-            if (data.status === 'healthy') {
+            if (data.status === 'healthy' && data.models_available && data.models_count > 0) {
                 apiStatusIndicator.classList.add('active');
+                // Also update models list when health check passes
+                await updateModelsList();
             } else {
                 apiStatusIndicator.classList.add('error');
             }
         } catch (error) {
             console.error('Health check failed:', error);
             apiStatusIndicator.classList.add('error');
+        }
+    }
+
+    // Add function to fetch and populate models
+    async function updateModelsList() {
+        try {
+            const response = await fetch('/api/models');
+            const data = await response.json();
+            
+            modelSelect.innerHTML = '<option value="">Auto-select model</option>';
+            data.models.forEach(modelId => {
+                const option = document.createElement('option');
+                option.value = modelId;
+                option.textContent = modelId;
+                modelSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
         }
     }
 
@@ -155,6 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusDiv.textContent = 'Getting response...';
                 const chatFormData = new FormData();
                 chatFormData.append('message', transcribeData.text);
+                if (modelSelect.value) {
+                    chatFormData.append('model', modelSelect.value);
+                }
                 
                 const chatResponse = await fetch('/api/chat', {
                     method: 'POST',

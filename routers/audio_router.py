@@ -21,6 +21,23 @@ if not OPENAI_API_KEY:
 logger.debug(f"Initializing router with BACKEND_URL: {BACKEND_URL}")
 client = AsyncOpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_URL if OPENAI_API_URL else None)
 
+# Initialize with dummy values
+client = AsyncOpenAI(api_key="none", base_url="http://localhost:8080")
+
+async def update_openai_client(api_url: str):
+    global client
+    client = AsyncOpenAI(api_key="none", base_url=api_url)
+    logger.info(f"OpenAI client updated with base URL: {api_url}")
+
+@router.post("/api/config")
+async def update_config(api_url: str = Form(...)):
+    try:
+        await update_openai_client(api_url)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Failed to update config: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Cache for the available model
 _cached_model: Optional[str] = None
 
@@ -79,38 +96,44 @@ async def transcribe_audio(file: UploadFile = File(...)):
         logger.error(f"Error in transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/api/models")
+async def get_models():
+    try:
+        models = await client.models.list()
+        return {"models": [model.id for model in models.data]}
+    except Exception as e:
+        logger.error(f"Failed to fetch models: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/chat")
-async def chat_completion(request: Request, message: str = Form(...)):
+async def chat_completion(request: Request, message: str = Form(...), model: str = Form(None)):
     start_time = time.time()
-    logger.debug(f"Received chat request with message: {message[:50]}...")
+    logger.debug(f"Received chat request with message: {message[:50]}... using model: {model}")
     try:
         if not message.strip():
             raise HTTPException(status_code=400, detail="Message cannot be empty")
 
         # Get or create session-specific chat history
-        session_id = str(hash(request.client.host))  # Simple session ID based on client IP
+        session_id = str(hash(request.client.host))
         if session_id not in chat_histories:
             chat_histories[session_id] = []
         
-        # Add user message to history
         chat_histories[session_id].append({"role": "user", "content": message})
         
-        model = await get_first_available_model()
-        logger.debug(f"Sending chat completion request using model: {model}")
+        # Use specified model or get first available
+        selected_model = model if model else await get_first_available_model()
+        logger.debug(f"Using model: {selected_model}")
         
         try:
-            # Send complete conversation history
             response = await client.chat.completions.create(
-                model=model,
+                model=selected_model,
                 messages=chat_histories[session_id],
                 max_tokens=150
             )
             reply = response.choices[0].message.content
             
-            # Add assistant's response to history
             chat_histories[session_id].append({"role": "assistant", "content": reply})
             
-            # Trim history if it gets too long (keep last 10 messages)
             if len(chat_histories[session_id]) > 10:
                 chat_histories[session_id] = chat_histories[session_id][-10:]
             
@@ -166,3 +189,14 @@ async def text_to_speech(text: str = Form(...), speaker_wav: UploadFile = File(.
     except Exception as e:
         logger.error(f"Error in TTS: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/health")
+async def health_check():
+    try:
+        models = await client.models.list()
+        if models and models.data:
+            logger.info(f"Health check successful, found {len(models.data)} models")
+            return {"status": "healthy", "models_available": True, "models_count": len(models.data)}
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+    return {"status": "unhealthy", "models_available": False, "models_count": 0}

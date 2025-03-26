@@ -202,3 +202,64 @@ body {
     font-size: 14px;
     color: #333;
 }
+
+.model-select {
+    margin: 10px 0;
+    padding: 5px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.config-section {
+    padding: 15px;
+    margin-bottom: 20px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.input-container {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-container label {
+    min-width: 80px;
+}
+
+.input-container input,
+.input-container select {
+    flex: 1;
+    max-width: 300px;
+    padding: 5px;
+}
+
+#save-config {
+    padding: 5px 15px;
+    cursor: pointer;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: gray;
+}
+
+.status-indicator.active {
+    background: #4CAF50;
+}
+
+.status-indicator.error {
+    background: #f44336;
+}
+
+.model-section {
+    margin-top: 10px;
+}
+
+.model-select {
+    min-width: 200px;
+    padding: 5px;
+}

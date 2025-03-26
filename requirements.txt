@@ -14,3 +14,4 @@ httpx>=0.24.0
 pytest-asyncio>=0.21.0
 soundfile
 openai
+flash-attn
