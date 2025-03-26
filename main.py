@@ -36,8 +36,9 @@ from NEUROSYNC_Audio_To_Face_Blendshape.utils.generate_face_shapes import genera
 from NEUROSYNC_Audio_To_Face_Blendshape.utils.config import config as neurosync_config
 
 # Set tts model path
-TTS_MODEL = os.getenv('TTS_MODEL', "./models/XTTS-v2-argentinian-spanish")
+TTS_MODEL = os.getenv('LOCAL_TTS_DIR')
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', "openai/whisper-large-v3-turbo")
+neurosync_model_path = os.getenv('LOCAL_BLENDSHAPE_DIR')
 
 UPLOAD_DIR="/tmp"
 
@@ -65,7 +66,7 @@ def get_whisper_model_faster(whisper_model: str):
         model=whisper_model,
         torch_dtype=torch.float16,
         device="cuda:0" if torch.cuda.is_available() else "cpu",
-        model_kwargs={"use_flash_attention_2": False},  # Disable Flash Attention 2
+        model_kwargs={"use_flash_attention_2": True},
     )
     return model
 
@@ -156,9 +157,10 @@ if not os.environ.get("NO_TTS", False):
     model, config = get_tts_model(TTS_MODEL)
 
 # Add NeuroSync model loading
-neurosync_model_path = 'models/NEUROSYNC_Audio_To_Face_Blendshape/model.pth'
 try:
-    blendshape_model = load_neurosync_model(neurosync_model_path, neurosync_config, device)
+    # Update path to include the actual model file
+    neurosync_model_file = os.path.join(neurosync_model_path, "model.pth")
+    blendshape_model = load_neurosync_model(neurosync_model_file, neurosync_config, device)
 except RuntimeError as e:
     print(f"Warning: Failed to load NeuroSync model: {e}")
     blendshape_model = None
