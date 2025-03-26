@@ -1,13 +1,12 @@
 # stt-tts-api
-
 FastAPI server to serve whisper transcription models, xtts speech synthesis and audio-to-blendshape face animation models, for an end-to-end voice conversational agent.
-
 Some of code has been copied from [whisper-ui](https://github.com/hayabhay/whisper-ui) and [NeuroSync](https://github.com/AnimaVR/NeuroSync_Player)
 
 ## Setup
+
+### Local Setup
 This was built & tested on Python 3.12.3, Ubutu 24.
 We recommend using a python virtual environment.
-
 ```bash
 git clone https://github.com/marianbasti/stt-tts-api
 cd stt-tts-api
@@ -15,18 +14,44 @@ cd stt-tts-api
 pip install --no-build-isolation flash-attn
 ```
 
+### Docker Setup
+1. Build the Docker image:
 ```bash
-# Optionally, set TTS model path and whisper model HF ID as environment variables. These are the default values
-export TTS_MODEL=./models/XTTS-v2-argentinian-spanish
-export WHISPER_MODEL=openai/whisper-large-v3-turbo
+docker build -t stt-tts-api .
 ```
+
+2. Run the container:
+!!!IMPORTANT: Pass a HF_TOKEN with access the NeuroSync model!!!
+```bash
+docker run -d \
+  --gpus all \
+  -e HF_TOKEN=yourtoken \
+  -p 8080:8080 \
+  -v models_cache:/app/models \
+  stt-tts-api
+```
+
+Note: On first run, the container will automatically download the required models from Hugging Face:
+- TTS Model: marianbasti/XTTS-v2-argentinian-spanish
+- Blendshape Model: AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape
+- Whisper Model: openai/whisper-large-v3-turbo
+
+The models are stored in a Docker volume (`models_cache`) to persist them between container restarts.
+
+### Environment Variables
+```bash
+# These are the default values, usually you don't need to change them
+export TTS_MODEL=/app/models/XTTS-v2-argentinian-spanish
+export WHISPER_MODEL=openai/whisper-large-v3-turbo
+export BLENDSHAPE_MODEL=AnimaVR/NEUROSYNC_Audio_To_Face_Blendshape
+```
+
 ## Usage
 
 ### Run server
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8080
 ```
-
 
 ### Simple web interface
 A minimalistic web GUI runs on the base URL. It enables
